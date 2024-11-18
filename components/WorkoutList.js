@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -7,6 +7,7 @@ import {
   TextInput,
   FlatList,
   Platform,
+  Animated,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { workoutPlan as defaultWorkoutPlan } from '../data/workoutPlan';
@@ -18,6 +19,31 @@ const WorkoutList = ({ workout, updateWorkout, isEditMode, resetWorkoutCompletio
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [selectedIndex, setSelectedIndex] = useState(null);
+  const progressAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (workout?.exercises) {
+      const completed = workout.exercises.filter(ex => ex.completed).length;
+      const total = workout.exercises.length;
+      const progress = total > 0 ? completed / total : 0;
+      
+      Animated.timing(progressAnim, {
+        toValue: progress,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
+    }
+  }, [workout?.exercises]);
+
+  const progressColor = progressAnim.interpolate({
+    inputRange: [0, 0.33, 0.66, 1],
+    outputRange: ['#FF4444', '#FFB800', '#4CAF50', '#4CAF50']
+  });
+
+  const progressWidth = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%']
+  });
 
   const updateWorkoutTitle = (newTitle) => {
     updateWorkout({ ...workout, workout: newTitle });
@@ -176,15 +202,17 @@ const WorkoutList = ({ workout, updateWorkout, isEditMode, resetWorkoutCompletio
       {isEditMode ? (
         <TextInput
           style={styles.workoutTitleInput}
-          value={workout.workout}
+          value={workout?.workout}
           onChangeText={updateWorkoutTitle}
-          placeholder="Workout Name"
-          placeholderTextColor="#666"
+          placeholder="Workout Title"
+          placeholderTextColor="#666666"
         />
       ) : (
         <Text style={styles.workoutTitle}>{workout.workout}</Text>
       )}
-      
+      <View style={styles.progressLineContainer}>
+        <Animated.View style={[styles.progressLine, { width: progressWidth, backgroundColor: progressColor }]} />
+      </View>
       <FlatList
         data={workout.exercises}
         renderItem={renderExerciseItem}
@@ -240,6 +268,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
     padding: 15,
+  },
+  progressLineContainer: {
+    height: 2,
+    backgroundColor: '#333333',
+    marginHorizontal: 10,
+    marginBottom: 15,
+    borderRadius: 1,
+    overflow: 'hidden',
+  },
+  progressLine: {
+    height: '100%',
+    borderRadius: 1,
   },
   workoutTitle: {
     fontSize: 32,
