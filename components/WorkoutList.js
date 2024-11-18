@@ -246,6 +246,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 20,
+    marginLeft: 10,
   },
   exerciseList: {
     flex: 1,
@@ -399,6 +400,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 20,
     padding: 0,
+    marginLeft: 10,
   },
   keyboardSpacing: {
     height: 200,

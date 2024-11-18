@@ -21,8 +21,14 @@ const fullDayNames = {
   'Sun': 'Sunday'
 };
 
+const getCurrentDay = () => {
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const today = days[new Date().getDay()];
+  return today === 'Sun' ? 'Mon' : today;
+};
+
 const App = () => {
-  const [selectedDay, setSelectedDay] = useState('Mon');
+  const [selectedDay, setSelectedDay] = useState(getCurrentDay());
   const [workoutPlan, setWorkoutPlan] = useState(initialWorkoutPlan);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isGenerateModalVisible, setIsGenerateModalVisible] = useState(false);
@@ -237,7 +243,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 15,
+    paddingHorizontal: 25,
     paddingBottom: Platform.OS === 'ios' ? 30 : 15,
     paddingTop: 15,
     flexDirection: 'row',
