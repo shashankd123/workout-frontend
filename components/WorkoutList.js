@@ -175,7 +175,11 @@ const WorkoutList = ({ workout, updateWorkout, isEditMode, resetWorkoutCompletio
                 style={styles.completeButton}
                 onPress={() => toggleExerciseCompletion(index)}
               >
-                <Icon name="check" size={24} color="#FFB800" />
+                <Icon 
+                  name="check" 
+                  size={24} 
+                  color={item.completed ? "#4CAF50" : "#FFB800"} 
+                />
               </TouchableOpacity>
             )}
           </View>
