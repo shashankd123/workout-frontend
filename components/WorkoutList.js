@@ -35,8 +35,8 @@ const WorkoutList = ({ workout, updateWorkout, isEditMode, resetWorkoutCompletio
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (workout?.exercises) {
-      const completed = workout.exercises.filter(ex => ex.completed).length;
+    if (workout?.exercises?.length > 0) {
+      const completed = workout.exercises.filter(ex => ex?.completed).length;
       const total = workout.exercises.length;
       const progress = total > 0 ? completed / total : 0;
       
@@ -45,6 +45,9 @@ const WorkoutList = ({ workout, updateWorkout, isEditMode, resetWorkoutCompletio
         duration: 300,
         useNativeDriver: false,
       }).start();
+    } else {
+      // Reset progress when no exercises
+      progressAnim.setValue(0);
     }
   }, [workout?.exercises]);
 
@@ -157,16 +160,19 @@ const WorkoutList = ({ workout, updateWorkout, isEditMode, resetWorkoutCompletio
   };
 
   const renderExerciseItem = ({ item, index }) => {
+    if (!item) return null;
+
     const isSimpleReps = (reps) => {
+      if (!reps) return false;
       const numberOrRangePattern = /^\d+(-\d+)?$/;
       return numberOrRangePattern.test(reps.trim());
     };
 
-    const repsDisplay = isSimpleReps(item.reps) ? `${item.reps} Reps` : item.reps;
+    const repsDisplay = isSimpleReps(item.reps) ? `${item.reps} Reps` : item.reps || 'N/A';
 
     let animatedStyle = {};
     
-    if (animatingIndices) {
+    if (animatingIndices && workout?.exercises) {
       const { fromIndex, toIndex } = animatingIndices;
       const movingUp = fromIndex > toIndex;
       const distance = 70; // Height of card + margin
@@ -237,31 +243,13 @@ const WorkoutList = ({ workout, updateWorkout, isEditMode, resetWorkoutCompletio
       ]}>
         <TouchableOpacity 
           style={styles.exerciseContent}
-          onPress={() => isEditMode && openEditModal(item, index)}
+          onPress={() => isEditMode && item && openEditModal(item, index)}
         >
           <View style={styles.exerciseInfo}>
-            <Text style={[
-              styles.exerciseName,
-              item.completed && styles.completedText
-            ]}>
-              {item.name}
+            <Text style={styles.exerciseName}>{item.name || 'Unnamed Exercise'}</Text>
+            <Text style={styles.exerciseDetails}>
+              {item.sets || 0} Sets • {repsDisplay}
             </Text>
-            <View style={styles.detailsRow}>
-              <Text style={[
-                styles.exerciseDetails,
-                item.completed && styles.completedText
-              ]}>
-                {item.sets} Sets
-              </Text>
-              <View style={styles.repsContainer}>
-                <Text style={[
-                  styles.exerciseDetails,
-                  item.completed && styles.completedText
-                ]}>
-                  {repsDisplay}
-                </Text>
-              </View>
-            </View>
           </View>
           {isEditMode ? (
             <View style={styles.editModeButtons}>
