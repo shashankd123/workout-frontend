@@ -8,10 +8,19 @@ import {
   FlatList,
   Platform,
   Animated,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { workoutPlan as defaultWorkoutPlan } from '../data/workoutPlan';
 import EditExerciseModal from './EditExerciseModal';
+
+// Enable LayoutAnimation for Android
+if (Platform.OS === 'android') {
+  if (UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
+}
 
 const WorkoutList = ({ workout, updateWorkout, isEditMode, resetWorkoutCompletion, toggleEditMode }) => {
   const [expandedIndex, setExpandedIndex] = useState(null);
@@ -19,7 +28,11 @@ const WorkoutList = ({ workout, updateWorkout, isEditMode, resetWorkoutCompletio
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [selectedIndex, setSelectedIndex] = useState(null);
+  const [animatingIndices, setAnimatingIndices] = useState(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
+  const moveAnim = useRef(new Animated.Value(0)).current;
+  const highlightedIndex = useState(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (workout?.exercises) {
@@ -122,18 +135,106 @@ const WorkoutList = ({ workout, updateWorkout, isEditMode, resetWorkoutCompletio
     closeEditModal();
   };
 
+  const moveExercise = (fromIndex, direction) => {
+    const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
+    if (toIndex < 0 || toIndex >= workout.exercises.length) return;
+
+    setAnimatingIndices({ fromIndex, toIndex });
+    moveAnim.setValue(0);
+
+    Animated.timing(moveAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      const updatedExercises = [...workout.exercises];
+      const [movedItem] = updatedExercises.splice(fromIndex, 1);
+      updatedExercises.splice(toIndex, 0, movedItem);
+      updateWorkout({ ...workout, exercises: updatedExercises });
+      setAnimatingIndices(null);
+      moveAnim.setValue(0);
+    });
+  };
+
   const renderExerciseItem = ({ item, index }) => {
-    // Function to check if reps is just a number or range (e.g., "12" or "10-15")
     const isSimpleReps = (reps) => {
       const numberOrRangePattern = /^\d+(-\d+)?$/;
       return numberOrRangePattern.test(reps.trim());
     };
 
-    // Handle reps display
     const repsDisplay = isSimpleReps(item.reps) ? `${item.reps} Reps` : item.reps;
 
+    let animatedStyle = {};
+    
+    if (animatingIndices) {
+      const { fromIndex, toIndex } = animatingIndices;
+      const movingUp = fromIndex > toIndex;
+      const distance = 70; // Height of card + margin
+
+      if (index === fromIndex) {
+        // Card being moved
+        const translateY = moveAnim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [0, movingUp ? -distance/2 : distance/2, movingUp ? -distance : distance]
+        });
+        const scale = moveAnim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [1, 1.05, 1]
+        });
+        const zIndex = moveAnim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [1, 2, 1]
+        });
+        animatedStyle = {
+          zIndex,
+          transform: [
+            { translateY },
+            { scale }
+          ],
+          shadowOpacity: moveAnim.interpolate({
+            inputRange: [0, 0.5, 1],
+            outputRange: [0, 0.3, 0]
+          })
+        };
+      } else if (index === toIndex) {
+        // Card being displaced
+        const translateY = moveAnim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [0, movingUp ? distance/2 : -distance/2, movingUp ? distance : -distance]
+        });
+        const scale = moveAnim.interpolate({
+          inputRange: [0, 0.5, 1],
+          outputRange: [1, 0.95, 1]
+        });
+        animatedStyle = {
+          zIndex: 0,
+          transform: [
+            { translateY },
+            { scale }
+          ]
+        };
+      }
+    }
+
+    const isHighlighted = index === highlightedIndex;
+    const highlightStyle = isHighlighted ? {
+      backgroundColor: fadeAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['#1E1E1E', '#2C3E50']
+      })
+    } : null;
+
     return (
-      <View style={styles.exerciseCard}>
+      <Animated.View style={[
+        styles.exerciseCard,
+        animatedStyle,
+        highlightStyle,
+        Platform.OS === 'ios' && animatedStyle.shadowOpacity && {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowRadius: 6,
+        }
+      ]}>
         <TouchableOpacity 
           style={styles.exerciseContent}
           onPress={() => isEditMode && openEditModal(item, index)}
@@ -162,29 +263,55 @@ const WorkoutList = ({ workout, updateWorkout, isEditMode, resetWorkoutCompletio
               </View>
             </View>
           </View>
-          <View style={styles.rightContent}>
-            {isEditMode ? (
+          {isEditMode ? (
+            <View style={styles.editModeButtons}>
+              <TouchableOpacity 
+                style={[styles.reorderButton, index === 0 && styles.disabledButton]}
+                onPress={() => moveExercise(index, 'up')}
+                disabled={index === 0}
+              >
+                <Icon 
+                  name="arrow-upward" 
+                  size={20} 
+                  color={index === 0 ? '#666' : '#fff'} 
+                  style={styles.reorderIcon}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.reorderButton, index === workout.exercises.length - 1 && styles.disabledButton]}
+                onPress={() => moveExercise(index, 'down')}
+                disabled={index === workout.exercises.length - 1}
+              >
+                <Icon 
+                  name="arrow-downward" 
+                  size={20} 
+                  color={index === workout.exercises.length - 1 ? '#666' : '#fff'} 
+                  style={styles.reorderIcon}
+                />
+              </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.deleteButton}
                 onPress={() => deleteExercise(index)}
               >
-                <Icon name="delete" size={24} color="#FFFFFF" />
+                <View style={styles.deleteButtonContent}>
+                  <Icon name="delete" size={24} color="#FFFFFF" />
+                </View>
               </TouchableOpacity>
-            ) : (
-              <TouchableOpacity 
-                style={styles.completeButton}
-                onPress={() => toggleExerciseCompletion(index)}
-              >
-                <Icon 
-                  name="check" 
-                  size={24} 
-                  color={item.completed ? "#4CAF50" : "#FFB800"} 
-                />
-              </TouchableOpacity>
-            )}
-          </View>
+            </View>
+          ) : (
+            <TouchableOpacity 
+              style={styles.completeButton}
+              onPress={() => toggleExerciseCompletion(index)}
+            >
+              <Icon 
+                name="check" 
+                size={24} 
+                color={item.completed ? "#4CAF50" : "#FFB800"} 
+              />
+            </TouchableOpacity>
+          )}
         </TouchableOpacity>
-      </View>
+      </Animated.View>
     );
   };
 
@@ -300,6 +427,7 @@ const styles = StyleSheet.create({
     marginVertical: 5,
     marginHorizontal: 10,
     borderRadius: 10,
+    elevation: 0,
   },
   exerciseContent: {
     flexDirection: 'row',
@@ -415,6 +543,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  deleteButtonContent: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#FF4444',
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   resetDefaultButton: {
     backgroundColor: '#FF4444',
   },
@@ -505,6 +642,20 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3,
+  },
+  reorderButton: {
+    padding: 8,
+    marginHorizontal: 4,
+    borderRadius: 20,
+    backgroundColor: '#333',
+  },
+  reorderIcon: {
+    opacity: 0.9,
+    transform: [{ scale: 0.9 }],
+  },
+  disabledButton: {
+    opacity: 0.5,
+    backgroundColor: '#222',
   },
 });
 
