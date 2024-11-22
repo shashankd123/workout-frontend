@@ -29,6 +29,7 @@ const getCurrentDay = () => {
 
 const App = () => {
   const [selectedDay, setSelectedDay] = useState(getCurrentDay());
+  const [previousDay, setPreviousDay] = useState(getCurrentDay());
   const [workoutPlan, setWorkoutPlan] = useState(initialWorkoutPlan);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isGenerateModalVisible, setIsGenerateModalVisible] = useState(false);
@@ -146,6 +147,25 @@ const App = () => {
     }
   };
 
+  const handleDayChange = (newDay) => {
+    // Reset the previous day's workout completion
+    const fullDayName = fullDayNames[selectedDay];
+    const updatedWorkout = {
+      ...workoutPlan[fullDayName],
+      exercises: workoutPlan[fullDayName].exercises.map(exercise => ({
+        ...exercise,
+        completed: false
+      }))
+    };
+    const newWorkoutPlan = { ...workoutPlan, [fullDayName]: updatedWorkout };
+    setWorkoutPlan(newWorkoutPlan);
+    saveWorkoutPlan(newWorkoutPlan);
+
+    // Update the days
+    setPreviousDay(selectedDay);
+    setSelectedDay(newDay);
+  };
+
   if (showGeneratedPlan && generatedWorkoutPlan) {
     return (
       <SafeAreaView style={styles.container}>
@@ -186,7 +206,10 @@ const App = () => {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardAvoidingView}
         >
-          <DaySelection selectedDay={selectedDay} onSelectDay={setSelectedDay} />
+          <DaySelection
+            selectedDay={selectedDay}
+            onDayChange={handleDayChange}
+          />
           {workoutPlan && (
             <WorkoutList 
               workout={{
@@ -308,12 +331,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingRight: 15,
   },
   generateButton: {
-    padding: 8,
-    marginTop: 20,
+    padding: 10,
+    // marginTop: 20,
   },
   backButton: {
     padding: 15,

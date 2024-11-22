@@ -4,29 +4,37 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 
 const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const DaySelection = ({ selectedDay, onSelectDay }) => {
+const DaySelection = ({ selectedDay, onDayChange }) => {
+  const currentIndex = days.indexOf(selectedDay);
+
   const handlePrevDay = () => {
-    const currentIndex = days.indexOf(selectedDay);
-    const prevIndex = currentIndex === 0 ? days.length - 1 : currentIndex - 1;
-    onSelectDay(days[prevIndex]);
+    const newIndex = currentIndex === 0 ? days.length - 1 : currentIndex - 1;
+    onDayChange(days[newIndex]);
   };
 
   const handleNextDay = () => {
-    const currentIndex = days.indexOf(selectedDay);
-    const nextIndex = currentIndex === days.length - 1 ? 0 : currentIndex + 1;
-    onSelectDay(days[nextIndex]);
+    const newIndex = currentIndex === days.length - 1 ? 0 : currentIndex + 1;
+    onDayChange(days[newIndex]);
   };
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={handlePrevDay} style={styles.arrowButton}>
-        <Icon name="chevron-left" size={30} color="#FFFFFF" />
+      <TouchableOpacity
+        style={styles.arrowButton}
+        onPress={handlePrevDay}
+      >
+        <Icon name="chevron-left" size={40} color="#FFB800" />
       </TouchableOpacity>
+
       <View style={styles.dayContainer}>
         <Text style={styles.dayText}>{selectedDay}</Text>
       </View>
-      <TouchableOpacity onPress={handleNextDay} style={styles.arrowButton}>
-        <Icon name="chevron-right" size={30} color="#FFFFFF" />
+
+      <TouchableOpacity
+        style={styles.arrowButton}
+        onPress={handleNextDay}
+      >
+        <Icon name="chevron-right" size={40} color="#FFB800" />
       </TouchableOpacity>
     </View>
   );
